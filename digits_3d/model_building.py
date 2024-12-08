@@ -1,80 +1,77 @@
 import numpy as np
-import pandas as pd
-from scipy import signal
-from sklearn.decomposition import PCA
-from sklearn.ensemble import RandomForestClassifier
+import os
+import pickle
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, confusion_matrix
-import pickle
-import os
+from data_processing import DigitProcessor
+from digits_3d.utils import plot_confusion_matrix
+from utils import get_distance
 
-from data_processing import process_strokes, reduce_dims
+processor = DigitProcessor()
 
-
+# Extracts the training data for the model
 def get_training_data():
-    all_strokes = process_strokes()
-    compact_data = reduce_dims(all_strokes)
+    all_strokes = processor.process_strokes()
+    compact_data = processor.reduce_dims(all_strokes)
     features = compact_data[['pc1', 'pc2']].values
     labels = compact_data['label'].values
     return features, labels
 
+def knn_classifier(x_test, k, x_train, y_train):
+    n_train = x_train.shape[0]
+    if len(x_test.shape) == 1:
+        x_test = x_test.reshape(1, -1)  # Reshapes to 2D if it's 1D
+    n_test = x_test.shape[0]
 
+    label = np.zeros((n_test))
+    d = np.zeros((n_test, n_train))
+
+    for i in range(n_test):
+        for j in range(n_train):
+            min_features = min(x_test[i].shape[0], x_train[j].shape[0])
+            d[i, j] = get_distance(x_test[i][:min_features], x_train[j][:min_features], type='euclidean')
+
+        idx_knn = np.argsort(d[i])[:k]
+        label[i] = np.bincount(y_train[idx_knn].astype(int)).argmax()
+
+    return label.astype(int)
+
+# Train the digit classifier
 def train_digit_classifier():
     X, y = get_training_data()
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    k = 7
 
-    clf = RandomForestClassifier(n_estimators=100, random_state=42)
-    clf.fit(X_train, y_train)
+    predictions = knn_classifier(X_test, k, X_train, y_train)
+    with open('digit_classifier.pkl', 'wb') as f:  # saves the trained model
+        pickle.dump((k, X_train, y_train), f)
 
-    # Save model
-    with open('digit_classifier.pkl', 'wb') as f:
-        pickle.dump(clf, f)
-
-    # Check performance
-    predictions = clf.predict(X_test)
+    # Check model accuracy
     acc = accuracy_score(y_test, predictions)
     print(f"Classifier Accuracy: {acc:.2%}")
     conf_mat = confusion_matrix(y_test, predictions)
     print("Confusion Matrix:")
     print(conf_mat)
+    # Plot confusion matrix
+    plot_confusion_matrix(conf_mat)
 
 
 def get_classifier():
     if not os.path.exists('digit_classifier.pkl'):
-        print("Model not found. Training new classifier...")
+        print("Model doesn't exist. Training new digit classifier...")
         train_digit_classifier()
 
     with open('digit_classifier.pkl', 'rb') as f:
-        return pickle.load(f)
+        k, X_train, y_train = pickle.load(f)
 
+    return k, X_train, y_train
 
+# Predict a given stroke
 def predict_digit(stroke_file):
-    clf = get_classifier()
+    k, X_train, y_train = get_classifier()
+    test_features = processor.process_and_extract_features(stroke_file)
 
-    # Process stroke data
-    stroke_data = pd.read_csv(stroke_file, header=None)
-    stroke_data.columns = ['x', 'y', 'z']
-    stroke_data['time'] = range(len(stroke_data))
-    stroke_data = stroke_data[['x', 'y', 'time']]
-
-    # Resample and normalize
-    resampled = pd.DataFrame(signal.resample(stroke_data[['x', 'y']], 11), columns=['x', 'y'])
-    normalized = (resampled - resampled.min()) / (resampled.max() - resampled.min())
-
-    # Compute unit vectors
-    diffs = normalized.diff().dropna()
-    magnitudes = np.sqrt(diffs['x'] ** 2 + diffs['y'] ** 2)
-    unit_vectors = diffs.div(magnitudes, axis=0)
-
-    # Reduce dimensions
-    if len(unit_vectors) > 1:
-        pca = PCA(n_components=2)
-        test_features = pca.fit_transform(unit_vectors)
-    else:
-        print("Warning: Not enough data points for PCA")
-        test_features = unit_vectors.values
-
-    # Make prediction
-    digit = clf.predict(test_features)[0]
-    print(f"The stroke likely represents the digit: {digit}")
-
+    # predict the digit
+    predictions = knn_classifier(test_features, k, X_train, y_train)
+    digit = predictions[0]
+    print(f"The given stroke is most likely: {digit}")
