@@ -1,8 +1,8 @@
-from digits_3d.model_building import predict_digit, train_digit_classifier
+from digits_3d.model_building import predict_digit, digit_classify
 
 def main():
     print("Training the model...")
-    train_digit_classifier()  # Trains the model
+    digit_classify('training_data')  # Trains the model
 
     # Test the model with a random stroke
     print("Testing the model...")
