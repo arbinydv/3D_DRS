@@ -10,8 +10,8 @@ from utils import get_distance
 processor = DigitProcessor()
 
 # Extracts the training data for the model
-def get_training_data(training_data):
-    all_strokes = processor.process_strokes(training_data)
+def get_training_data():
+    all_strokes = processor.process_strokes()
     compact_data = processor.reduce_dims(all_strokes)
     features = compact_data[['pc1', 'pc2']].values
     labels = compact_data['label'].values
@@ -37,8 +37,8 @@ def knn_classifier(x_test, k, x_train, y_train):
     return label.astype(int)
 
 # Train the digit classifier
-def digit_classify(training_data):
-    X, y = get_training_data(training_data)
+def train_digit_classifier():
+    X, y = get_training_data()
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     k = 7
 
@@ -57,9 +57,7 @@ def digit_classify(training_data):
 
 
 def get_classifier():
-    if not os.path.exists('digit_classifier.pkl'):
-        print("Model doesn't exist. Training new digit classifier...")
-        digit_classify()
+    train_digit_classifier()
 
     with open('digit_classifier.pkl', 'rb') as f:
         k, X_train, y_train = pickle.load(f)

@@ -1,12 +1,7 @@
-from digits_3d.model_building import predict_digit, digit_classify
+from digits_3d.model_building import train_digit_classifier, predict_digit
 
-def main():
-    print("Training the model...")
-    digit_classify('training_data')  # Trains the model
-
-    # Test the model with a random stroke
-    print("Testing the model...")
-    predict_digit('single_test/stroke_0_0002.csv')  # Example test stroke
+def digit_classify(sample):
+    predict_digit(sample)
 
 if __name__ == "__main__":
-    main()
+    digit_classify('single_test/stroke_0_0002.csv')
