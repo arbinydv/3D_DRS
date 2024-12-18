@@ -11,8 +11,8 @@ def get_distance(x1, x2, type='euclidean'):
     else:
         return np.sum(np.abs(x1 - x2))
 
-# Scales the input data X to a custom feature range
-def min_max_scaler(X, feature_range=(0, 1)):
+# applies min-max normalization to the input data, scales data between 0 and 1
+def min_max_normalization(X, feature_range=(0, 1)):
     X = np.array(X)
     min_vals = np.min(X, axis=0)
     max_vals = np.max(X, axis=0)
