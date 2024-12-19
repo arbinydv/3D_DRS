@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -11,6 +13,10 @@ def get_distance(x1, x2, type='euclidean'):
     else:
         return np.sum(np.abs(x1 - x2))
 
+# prepare input for CNN through interpolation to get new x, y, z values
+def interpolate(x_values, y_values, x):
+    return np.interp(x, x_values, y_values)
+
 # applies min-max normalization to the input data, scales data between 0 and 1
 def min_max_normalization(X, feature_range=(0, 1)):
     X = np.array(X)
@@ -21,13 +27,9 @@ def min_max_normalization(X, feature_range=(0, 1)):
     scaled_X = scaled_X * (range_max - range_min) + range_min
     return scaled_X
 
-# Compute unit vectors
-def calculate_unit_vectors(normalized):
-    diff = normalized.diff().dropna()
-    magnitudes = np.linalg.norm(diff, axis=1)
-    unit_vectors = diff / magnitudes[:, np.newaxis]
-    unit_vectors_df = pd.DataFrame(unit_vectors, columns=['x', 'y'])
-    return unit_vectors_df
+# Generate path
+def generate_path(file_input):
+    return os.path.join('training_data', file_input)
 
 # Plots confusion matrix as a heatmap
 def plot_confusion_matrix(confusion_matrix):
@@ -36,4 +38,14 @@ def plot_confusion_matrix(confusion_matrix):
     plt.title('Confusion Matrix of Classifier Model')
     plt.xlabel('Predicted Label')
     plt.ylabel('True Label')
+    plt.show()
+
+def plot_training_history(training, validation):
+    plt.figure(figsize=(8, 4))
+    plt.plot(training, label='Train Accuracy')
+    plt.plot(validation, label='Validation Accuracy')
+    plt.xlabel('Epochs')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    plt.title('Training and Validation Accuracy')
     plt.show()

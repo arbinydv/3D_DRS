@@ -1,36 +1,43 @@
+import warnings
+
+import numpy as np
+from sklearn.metrics import confusion_matrix
+
 from digits_3d.cnn_model import build_cnn_model
-from digits_3d.stroke_dataset import StrokeDataset
+from digits_3d.data_processor import DataProcessor
 import matplotlib.pyplot as plt
 
-if __name__ == "__main__":
-    # Step 1: Load and split data
+from digits_3d.utils import plot_confusion_matrix, plot_training_history
 
-    data_loader = StrokeDataset(data_dir="training_data", n_resample=16)
+
+def train_model():
+    warnings.filterwarnings("ignore")
+    data_loader = DataProcessor(data_dir="training_data", n_resample=16)
     X, y = data_loader.load_data()
-    X_train, X_test, y_train, y_test = data_loader.split_data(X, y)
+    X_train, X_test, y_train, y_test = data_loader.split(X, y)
 
     print(f"Training data shape: {X_train.shape}")
     print(f"Testing data shape: {X_test.shape}")
 
-    # Step 2: Build the CNN model
+    # Build the CNN model
     cnn_model = build_cnn_model(input_shape=(X_train.shape[1], X_train.shape[2], 1))
 
-    # Step 3: Train the model
-    history = cnn_model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y_test))
+    # Train the model
+    classifier = cnn_model.fit(X_train, y_train, epochs=20, batch_size=32, validation_data=(X_test, y_test))
 
-    # Step 4: Evaluate the model
+    # Test the model
     test_loss, test_acc = cnn_model.evaluate(X_test, y_test)
-    print(f"Test Accuracy: {test_acc:.2%}")
 
-    # Step 5: Save the model
-    cnn_model.save("stroke_digit_cnn.keras")
+    y_pred_probs = cnn_model.predict(X_test)
+    y_pred = np.argmax(y_pred_probs, axis=1)
 
-    # Step 6: Plot training history
-    plt.figure(figsize=(8, 4))
-    plt.plot(history.history['accuracy'], label='Train Accuracy')
-    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
-    plt.xlabel('Epochs')
-    plt.ylabel('Accuracy')
-    plt.legend()
-    plt.title('Training and Validation Accuracy')
-    plt.show()
+    # Generates confusion matrix
+    cm = confusion_matrix(y_test, y_pred)
+    plot_confusion_matrix(cm)
+    plot_training_history(classifier.history['accuracy'], classifier.history['val_accuracy'])
+
+    print(f"Classifier Test Accuracy: {test_acc:.2%}")
+
+    cnn_model.save("classifier_model.keras")
+
+
